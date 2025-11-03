@@ -27,60 +27,63 @@ def sh(sf,t,vs,fs):
         p.draw.polygon(sf,(col,int(col*0.6),int(col*0.3)),pg)
 def g():
     try:
-        sr=22050;bt=.5;bar=2.0;bars=8
-        fn=os.path.join(tempfile.gettempdir(),'m.wav')
+        sr=22050;bt=.5;bar=2.0;nb=8
+        fn=os.path.join(tempfile.gettempdir(),'m'+str(int(rr()*1e6))+'.wav')
         wv=wave.open(fn,'wb');wv.setnchannels(1);wv.setsampwidth(2);wv.setframerate(sr)
-        ts=[131,147,165,175,196,220,247]
-        pg=[[0,4,5,3],[0,5,3,4],[0,5,4,1]][int(rr()*3)]
-        bo=[1]*bars;boc=[0]*bars
-        for _ in range(2):bo[int(rr()*bars)]=0
-        for b in range(bars):
-            if rr()<0.5:boc[b]=1
+        ts=[131,147,165,175,196,220,247,262,294,330,349,392]
+        pg=[int(rr()*7) for _ in range(4)]
+        bo=[1]*nb;pit=[1]*nb
+        for _ in range(2):bo[int(rr()*nb)]=0
+        for b in range(nb):pit[b]=0.5 if rr()<0.3 else 1
         cd=[];bs=[]
-        for b in range(bars):
-            ix=pg[b%len(pg)];rt=ts[ix]
-            cd.append((rt,ts[(ix+2)%len(ts)],ts[(ix+4)%len(ts)]))
-            bs.append(rt*(0.5 if boc[b]==0 else 1))
-        ps=[];sq=[];li=-1;rc=0
-        for b in range(bars):
-            if ps and rc<1 and rr()<0.3:
-                sq.append(li);rc+=1
-            elif ps and rr()<0.2:
-                j=0 if len(ps)<3 else (2 if rr()<0.5 else 0);sq.append(j);li=j;rc=0
-            else:
-                if ps and rr()<0.5:
-                    cur=ps[li][:]
-                    cur=[ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2 if rr()<0.4 else v for v in cur]
-                else:
-                    cur=[ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2 for _ in range(4)]
-                ps.append(cur);li=len(ps)-1;sq.append(li);rc=0
+        for b in range(nb):
+            idx=pg[b%len(pg)];rt=ts[idx]
+            cd.append((rt,ts[(idx+2)%len(ts)],ts[(idx+4)%len(ts)]))
+            bs.append(rt*pit[b])
+        pn=3+int(rr()*3);ps=[]
+        for i0 in range(pn):
+            base=int(rr()*len(ts));row=[]
+            for _ in range(4):row.append(ts[(base+int(rr()*6))%len(ts)]*2)
+            ps.append(row)
+        seq=[];last=-1
+        for b in range(nb):
+            if last>=0 and rr()<0.4:seq.append(last)
+            else:seq.append(int(rr()*pn))
+            last=seq[-1]
         m2=[]
-        for b in range(bars):
-            pat=ps[sq[b]]
+        for b in range(nb):
+            pat=ps[seq[b]]
             for h in range(8):
-                if rr()<0.7:m2.append(pat[h//2])
-                else:m2.append(ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2)
-        p=[0]*bars;ip=[0]*bars;p_pos=[0]*bars;p_half=[0]*bars;i_pos=[0]*bars;i_half=[0]*bars
-        for b in range(bars):
+                if rr()<0.6:note=pat[h//2]
+                else:note=ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2
+                m2.append(note)
+        p0=[0]*nb;inst=[0]*nb;pp=[0]*nb;ph=[0]*nb;ip=[0]*nb;ih=[0]*nb
+        for b in range(nb):
             if rr()<0.35:
-                p[b]=ts[pg[b%len(pg)]]*4;p_pos[b]=int(rr()*4);p_half[b]=int(rr()*2)
+                p0[b]=ts[pg[b%len(pg)]]*4;pp[b]=int(rr()*4);ph[b]=int(rr()*2)
             if rr()<0.25:
-                ip[b]=ts[pg[b%len(pg)]]*3;i_pos[b]=int(rr()*4);i_half[b]=int(rr()*2)
-        total=int(sr*bars*bar)
-        for i in range(total):
-            t=i/sr;b=int(t/bar);pos=t-b*bar;q=int(pos/bt);bp=pos-q*bt
+                inst[b]=ts[pg[b%len(pg)]]*3;ip[b]=int(rr()*4);ih[b]=int(rr()*2)
+        rl=int(sr*0.15);rv=[0.0]*rl;ri=0
+        tot=int(sr*nb*bar)
+        for i in range(tot):
+            t=i/sr;b=int(t/bar);pos=t-b*bar
+            q=int(pos/bt);bp=pos-q*bt
             q2=int(pos/(bt/2));bp2=pos-q2*(bt/2)
-            r,th,fi=cd[b];ch=(sn(2*pi*r*t)+sn(2*pi*th*t)+sn(2*pi*fi*t))*0.2
-            ba=0 if bo[b]==0 else sn(2*pi*bs[b]*t)*0.5
-            mv=sn(2*pi*m2[b*8+q2]*t)*0.3*(0.6 if q2%2 else 1)
+            r,th,fi=cd[b]
+            ch=(sn(2*pi*r*t)+sn(2*pi*th*t)+sn(2*pi*fi*t))*0.2
+            ba=sn(2*pi*bs[b]*t)*0.5 if bo[b] else 0
+            mv=sn(2*pi*m2[b*8+q2]*t)*0.3
             k_a=(0.1-bp)/0.1 if bp<0.1 else 0;k=sn(2*pi*55*t)*k_a*0.8
             s_a=(0.05-bp)/0.05 if q in (1,3) and bp<0.05 else 0;snr=sn(2*pi*2000*t)*s_a*0.4
-            hh=int(pos/(bt/2));hh_bp=pos-hh*(bt/2);h_a=(0.02-hh_bp)/0.02 if hh_bp<0.02 else 0;ht=sn(2*pi*3000*t)*h_a*0.2
+            h_a=(0.02-bp2)/0.02 if bp2<0.02 else 0;hat=sn(2*pi*3000*t)*h_a*0.2
             pv=0
-            if p[b] and q2==p_pos[b]*2+p_half[b] and bp2<0.3:pv=sn(2*pi*p[b]*t)*(0.3-bp2)/0.3*0.4
+            if p0[b] and q2==pp[b]*2+ph[b] and bp2<0.3:
+                pv=sn(2*pi*p0[b]*t)*(0.3-bp2)/0.3*0.4
             xv=0
-            if ip[b] and q2==i_pos[b]*2+i_half[b] and bp2<0.3:xv=sn(2*pi*ip[b]*t)*(0.3-bp2)/0.3*0.35
-            v=ch+ba+mv+k+snr+ht+pv+xv
+            if inst[b] and q2==ip[b]*2+ih[b] and bp2<0.3:
+                xv=sn(2*pi*inst[b]*t)*(0.3-bp2)/0.3*0.35
+            v=ch+ba+mv+k+snr+hat+pv+xv
+            v=v*0.7+rv[ri]*0.3;rv[ri]=v;ri=(ri+1)%rl
             if v>1:v=1
             if v<-1:v=-1
             wv.writeframes(struct.pack('<h',int(v*32767)))
@@ -211,14 +214,13 @@ def hx(sf,t):
     sf.fill((0,0,0))
     m=max(W,H)/3
     for i in range(100):
-        z=i/100;a=t*1.2+i*0.15;r=(1-z)*m;x=int(W/2+co(a)*r);y=int(H/2+sn(a)*r);
+        z=i/100;a=t*1.2+i*0.15;r=(1-z)*m;x=int(W/2+co(a)*r);y=int(H/2+sn(a)*r)
         c=int(255*z);p.draw.circle(sf,(c,int(c*0.7),int(c*0.4)),(x,y),4)
 def np(sf,t):
     for x in range(80):
         for y in range(80):
             v=int(128+127*sn(x*0.08+t)+127*sn(y*0.08-t)+127*sn((x+y)*0.04+t*0.5));v=max(0,min(255,v))
-            g=int(v*0.5+127*sn(t*0.2))
-            g=max(0,min(255,g))
+            g=int(v*0.5+127*sn(t*0.2));g=max(0,min(255,g))
             P.set_at((x,y),(v,g,255-v))
     Q=p.transform.smoothscale(P,(W,H));Q.set_alpha(90);sf.blit(Q,(0,0))
 def mg(sf,t):
