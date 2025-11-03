@@ -32,9 +32,15 @@ def g():
         wv=wave.open(fn,'wb');wv.setnchannels(1);wv.setsampwidth(2);wv.setframerate(sr)
         ts=[131,147,165,175,196,220,247]
         pg=[[0,4,5,3],[0,5,3,4],[0,5,4,1]][int(rr()*3)]
+        bo=[1]*bars;boc=[0]*bars
+        for _ in range(2):bo[int(rr()*bars)]=0
+        for b in range(bars):
+            if rr()<0.5:boc[b]=1
         cd=[];bs=[]
         for b in range(bars):
-            ix=pg[b%len(pg)];rt=ts[ix];cd.append((rt,ts[(ix+2)%len(ts)],ts[(ix+4)%len(ts)]));bs.append(rt*0.5)
+            ix=pg[b%len(pg)];rt=ts[ix]
+            cd.append((rt,ts[(ix+2)%len(ts)],ts[(ix+4)%len(ts)]))
+            bs.append(rt*(0.5 if boc[b]==0 else 1))
         ps=[];sq=[];li=-1;rc=0
         for b in range(bars):
             if ps and rc<1 and rr()<0.3:
@@ -48,24 +54,32 @@ def g():
                 else:
                     cur=[ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2 for _ in range(4)]
                 ps.append(cur);li=len(ps)-1;sq.append(li);rc=0
-        mel=[]
-        for idx in sq:mel+=ps[idx]
-        piano=[0]*bars;inst=[0]*bars
+        m2=[]
         for b in range(bars):
-            if rr()<0.35:piano[b]=ts[pg[b%len(pg)]]*4
-            if rr()<0.25:inst[b]=ts[pg[b%len(pg)]]*3
+            pat=ps[sq[b]]
+            for h in range(8):
+                if rr()<0.7:m2.append(pat[h//2])
+                else:m2.append(ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2)
+        p=[0]*bars;ip=[0]*bars;p_pos=[0]*bars;p_half=[0]*bars;i_pos=[0]*bars;i_half=[0]*bars
+        for b in range(bars):
+            if rr()<0.35:
+                p[b]=ts[pg[b%len(pg)]]*4;p_pos[b]=int(rr()*4);p_half[b]=int(rr()*2)
+            if rr()<0.25:
+                ip[b]=ts[pg[b%len(pg)]]*3;i_pos[b]=int(rr()*4);i_half[b]=int(rr()*2)
         total=int(sr*bars*bar)
         for i in range(total):
             t=i/sr;b=int(t/bar);pos=t-b*bar;q=int(pos/bt);bp=pos-q*bt
+            q2=int(pos/(bt/2));bp2=pos-q2*(bt/2)
             r,th,fi=cd[b];ch=(sn(2*pi*r*t)+sn(2*pi*th*t)+sn(2*pi*fi*t))*0.2
-            ba=sn(2*pi*bs[b]*t)*0.5;mv=sn(2*pi*mel[b*4+q]*t)*0.3
+            ba=0 if bo[b]==0 else sn(2*pi*bs[b]*t)*0.5
+            mv=sn(2*pi*m2[b*8+q2]*t)*0.3*(0.6 if q2%2 else 1)
             k_a=(0.1-bp)/0.1 if bp<0.1 else 0;k=sn(2*pi*55*t)*k_a*0.8
             s_a=(0.05-bp)/0.05 if q in (1,3) and bp<0.05 else 0;snr=sn(2*pi*2000*t)*s_a*0.4
             hh=int(pos/(bt/2));hh_bp=pos-hh*(bt/2);h_a=(0.02-hh_bp)/0.02 if hh_bp<0.02 else 0;ht=sn(2*pi*3000*t)*h_a*0.2
             pv=0
-            if piano[b] and q==0 and bp<0.3:pv=sn(2*pi*piano[b]*t)*(0.3-bp)/0.3*0.4
+            if p[b] and q2==p_pos[b]*2+p_half[b] and bp2<0.3:pv=sn(2*pi*p[b]*t)*(0.3-bp2)/0.3*0.4
             xv=0
-            if inst[b] and q==2 and bp<0.3:xv=sn(2*pi*inst[b]*t)*(0.3-bp)/0.3*0.35
+            if ip[b] and q2==i_pos[b]*2+i_half[b] and bp2<0.3:xv=sn(2*pi*ip[b]*t)*(0.3-bp2)/0.3*0.35
             v=ch+ba+mv+k+snr+ht+pv+xv
             if v>1:v=1
             if v<-1:v=-1
