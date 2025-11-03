@@ -14,3 +14,4 @@ Changelog
 2025-Nov-03
 
 - Better Sound / More effects
+- More Random generated music
