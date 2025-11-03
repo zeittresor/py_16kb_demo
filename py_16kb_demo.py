@@ -1,5 +1,5 @@
 # github.com/zeittresor
-import pygame as p,wave,struct,math,os,random,tempfile
+import pygame as p,math,os,random,tempfile,wave,struct
 from math import sin as sn,cos as co,pi
 rr=random.random;ru=random.uniform
 CO=[rr()*6.28 for _ in range(3)]
@@ -27,34 +27,43 @@ def sh(sf,t,vs,fs):
         p.draw.polygon(sf,(col,int(col*0.6),int(col*0.3)),pg)
 def g():
     try:
-        dt=tempfile.gettempdir();sr=22050;mp=os.path.join(dt,'m.wav')
-        wv=wave.open(mp,'wb');wv.setnchannels(1);wv.setsampwidth(2);wv.setframerate(sr)
-        pl=[70,74,78,83,87,92,98,104,110,117,123,130];random.shuffle(pl)
-        sc=8+int(rr()*5);segs=[]
-        for _ in range(sc):
-            rt=pl[int(rr()*len(pl))];lp=2+int(rr()*3);pt=int(rr()*3);segs.append((rt,lp,pt))
-        bpm=110;bd=60/bpm;md=bd*4
-        kf=ru(18,28);kw=ru(0.25,0.4);echo=0;echo_decay=0.5
-        for rt,lp,pt in segs:
-            segD=md*lp
-            if pt==0:r1,r2,r3,r4=(1,1.25,1.5,2)
-            elif pt==1:r1,r2,r3,r4=(1,1.333,1.667,2.25)
-            else:r1,r2,r3,r4=(1,1.5,2,2.5)
-            for i in range(int(sr*segD)):
-                t=i/sr;ph=(t%md)/md
-                mel=(sn(2*pi*rt*r1*t)+0.5*sn(2*pi*rt*r2*t)+0.4*sn(2*pi*rt*r3*t)+0.3*sn(2*pi*rt*r4*t))*(1-ph)
-                bfreq=rt*0.5;fm=0.02*sn(2*pi*0.5*t);bass=sn(2*pi*(bfreq*(1+fm))*t)*0.8
-                bp=(t%bd)/bd;kick=sn(2*pi*kf*t)*(max(0,kw-bp)/kw)
-                beat_idx=int((t/md*4)%8)
-                clp=((rr()*2-1)*0.15 if beat_idx in(2,6) else 0)
-                piano=sn(2*pi*rt*1.333*t)*0.22*(1-ph)+sn(2*pi*rt*1.618*t)*0.15*(1-ph)
-                string=sn(2*pi*rt*2.5*t)*0.06
-                s=(mel*0.25 + bass + kick + clp + piano + string)*0.5
-                s2=s+echo*0.25;echo=s2*echo_decay
-                amp=0.7+0.3*sn(2*pi*0.1*t)
-                val=max(-1,min(1,s2*amp))
-                wv.writeframes(struct.pack('<h',int(val*32767)))
-        wv.close();return mp
+        sr=22050
+        bt=0.5;bar=2.0;bars=4;length=bar*bars
+        fn=os.path.join(tempfile.gettempdir(),'m.wav')
+        wv=wave.open(fn,'wb');wv.setnchannels(1);wv.setsampwidth(2);wv.setframerate(sr)
+        tones=[131,147,165,175,196,220,247]
+        prog=[[0,4,5,3],[0,5,3,4],[0,5,4,1]][int(rr()*3)]
+        chords=[];bass=[];mel=[]
+        for c in prog:
+            root=tones[c];chords.append((root,tones[(c+2)%len(tones)],tones[(c+4)%len(tones)]));bass.append(root*0.5)
+        for j,c in enumerate(prog):
+            for _ in range(4):
+                mel.append(tones[(c+int(rr()*6))%len(tones)]*2)
+        total=int(sr*length)
+        for i in range(total):
+            t=i/sr
+            b=int(t/bar)
+            pos=t-b*bar
+            q=int(pos/bt)
+            bp=pos-q*bt
+            r,th,fi=chords[b]
+            chord=(sn(2*pi*r*t)+sn(2*pi*th*t)+sn(2*pi*fi*t))*0.2
+            bas=sn(2*pi*bass[b]*t)*0.5
+            melv=sn(2*pi*mel[b*4+q]*t)*0.3
+            k_amp=(0.1-bp)/0.1 if bp<0.1 else 0
+            kick=sn(2*pi*55*t)*k_amp*0.8
+            s_amp=(0.05-bp)/0.05 if q in (1,3) and bp<0.05 else 0
+            snare=sn(2*pi*2000*t)*s_amp*0.4
+            hh=int(pos/(bt/2))
+            hh_bp=pos-hh*(bt/2)
+            h_amp=(0.02-hh_bp)/0.02 if hh_bp<0.02 else 0
+            hat=sn(2*pi*3000*t)*h_amp*0.2
+            v=chord+bas+melv+kick+snare+hat
+            if v>1:v=1
+            if v<-1:v=-1
+            wv.writeframes(struct.pack('<h',int(v*32767)))
+        wv.close()
+        return fn
     except Exception:
         return None
 p.init();p.mixer.init(22050,-16,1)
