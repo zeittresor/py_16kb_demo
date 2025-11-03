@@ -27,43 +27,50 @@ def sh(sf,t,vs,fs):
         p.draw.polygon(sf,(col,int(col*0.6),int(col*0.3)),pg)
 def g():
     try:
-        sr=22050
-        bt=0.5;bar=2.0;bars=4;length=bar*bars
+        sr=22050;bt=.5;bar=2.0;bars=8
         fn=os.path.join(tempfile.gettempdir(),'m.wav')
         wv=wave.open(fn,'wb');wv.setnchannels(1);wv.setsampwidth(2);wv.setframerate(sr)
-        tones=[131,147,165,175,196,220,247]
-        prog=[[0,4,5,3],[0,5,3,4],[0,5,4,1]][int(rr()*3)]
-        chords=[];bass=[];mel=[]
-        for c in prog:
-            root=tones[c];chords.append((root,tones[(c+2)%len(tones)],tones[(c+4)%len(tones)]));bass.append(root*0.5)
-        for j,c in enumerate(prog):
-            for _ in range(4):
-                mel.append(tones[(c+int(rr()*6))%len(tones)]*2)
-        total=int(sr*length)
+        ts=[131,147,165,175,196,220,247]
+        pg=[[0,4,5,3],[0,5,3,4],[0,5,4,1]][int(rr()*3)]
+        cd=[];bs=[]
+        for b in range(bars):
+            ix=pg[b%len(pg)];rt=ts[ix];cd.append((rt,ts[(ix+2)%len(ts)],ts[(ix+4)%len(ts)]));bs.append(rt*0.5)
+        ps=[];sq=[];li=-1;rc=0
+        for b in range(bars):
+            if ps and rc<1 and rr()<0.3:
+                sq.append(li);rc+=1
+            elif ps and rr()<0.2:
+                j=0 if len(ps)<3 else (2 if rr()<0.5 else 0);sq.append(j);li=j;rc=0
+            else:
+                if ps and rr()<0.5:
+                    cur=ps[li][:]
+                    cur=[ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2 if rr()<0.4 else v for v in cur]
+                else:
+                    cur=[ts[(pg[b%len(pg)]+int(rr()*6))%len(ts)]*2 for _ in range(4)]
+                ps.append(cur);li=len(ps)-1;sq.append(li);rc=0
+        mel=[]
+        for idx in sq:mel+=ps[idx]
+        piano=[0]*bars;inst=[0]*bars
+        for b in range(bars):
+            if rr()<0.35:piano[b]=ts[pg[b%len(pg)]]*4
+            if rr()<0.25:inst[b]=ts[pg[b%len(pg)]]*3
+        total=int(sr*bars*bar)
         for i in range(total):
-            t=i/sr
-            b=int(t/bar)
-            pos=t-b*bar
-            q=int(pos/bt)
-            bp=pos-q*bt
-            r,th,fi=chords[b]
-            chord=(sn(2*pi*r*t)+sn(2*pi*th*t)+sn(2*pi*fi*t))*0.2
-            bas=sn(2*pi*bass[b]*t)*0.5
-            melv=sn(2*pi*mel[b*4+q]*t)*0.3
-            k_amp=(0.1-bp)/0.1 if bp<0.1 else 0
-            kick=sn(2*pi*55*t)*k_amp*0.8
-            s_amp=(0.05-bp)/0.05 if q in (1,3) and bp<0.05 else 0
-            snare=sn(2*pi*2000*t)*s_amp*0.4
-            hh=int(pos/(bt/2))
-            hh_bp=pos-hh*(bt/2)
-            h_amp=(0.02-hh_bp)/0.02 if hh_bp<0.02 else 0
-            hat=sn(2*pi*3000*t)*h_amp*0.2
-            v=chord+bas+melv+kick+snare+hat
+            t=i/sr;b=int(t/bar);pos=t-b*bar;q=int(pos/bt);bp=pos-q*bt
+            r,th,fi=cd[b];ch=(sn(2*pi*r*t)+sn(2*pi*th*t)+sn(2*pi*fi*t))*0.2
+            ba=sn(2*pi*bs[b]*t)*0.5;mv=sn(2*pi*mel[b*4+q]*t)*0.3
+            k_a=(0.1-bp)/0.1 if bp<0.1 else 0;k=sn(2*pi*55*t)*k_a*0.8
+            s_a=(0.05-bp)/0.05 if q in (1,3) and bp<0.05 else 0;snr=sn(2*pi*2000*t)*s_a*0.4
+            hh=int(pos/(bt/2));hh_bp=pos-hh*(bt/2);h_a=(0.02-hh_bp)/0.02 if hh_bp<0.02 else 0;ht=sn(2*pi*3000*t)*h_a*0.2
+            pv=0
+            if piano[b] and q==0 and bp<0.3:pv=sn(2*pi*piano[b]*t)*(0.3-bp)/0.3*0.4
+            xv=0
+            if inst[b] and q==2 and bp<0.3:xv=sn(2*pi*inst[b]*t)*(0.3-bp)/0.3*0.35
+            v=ch+ba+mv+k+snr+ht+pv+xv
             if v>1:v=1
             if v<-1:v=-1
             wv.writeframes(struct.pack('<h',int(v*32767)))
-        wv.close()
-        return fn
+        wv.close();return fn
     except Exception:
         return None
 p.init();p.mixer.init(22050,-16,1)
