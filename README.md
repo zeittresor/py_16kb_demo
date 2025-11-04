@@ -10,6 +10,9 @@ Scene Demo with random effects in under 16kb incl. graphics and sound..
 
 Changelog
 
+2025-Nov-04
+
+- Alphatest folder added with the latest alpha testversion (useable but might be ill / crazy sometimes).
 
 2025-Nov-03
 
